@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Anotador de Dominó Venezolano</title>
+    <link rel="manifest" href="manifest.json">
+    <script>
+        if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+        }
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+            padding: 8px;
+        }
+        /* Top Controls */
+        .top-controls {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            width: 100%;
+            margin-bottom: 4px;
+        }
+        .btn-top {
+            flex: 1;
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            border-radius: 12px;
+            padding: 10px 4px;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+        .btn-top.green {
+            border-color: #00ff66;
+            color: #00ff66;
+        }
+        #btn-corregir-puntajes {
+            width: 100%;
+            margin-bottom: 4px;
+            padding: 5px;
+            color: #fff;
+            background: #222;
+            border: 1px solid #fff;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #btn-corregir-puntajes[aria-pressed="true"] {
+            background: #704600;
+        }
+        /* Tables Area */
+        .tables-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+        }
+        .table-card {
+            flex: 1;
+            background-color: #000000;
+            border: 2px solid #ffffff;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            max-height: 100%;
+        }
+        .table-header {
+            background-color: #111111;
+            border-bottom: 2px solid #ffffff;
+            padding: 4px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .table-players {
+            display: flex;
+            border-bottom: 2px solid #ffffff;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            background-color: #000000;
+        }
+        .player-col {
+            flex: 1;
+            padding: 4px 2px;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            background: #000;
+            color: #fff;
+            border: 0;
+            border-right: 1px solid #ffffff;
+            font: inherit;
+            cursor: pointer;
+        }
+        .player-col:last-child {
+            border-right: none;
+        }
+        .player-col.active-turn {
+            background-color: #cc0000;
+            color: #ffffff;
+        }
+        .table-body {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .score-row {
+            display: flex;
+            border-bottom: 1px solid #333333;
+            font-size: 16px;
+            text-align: center;
+        }
+        .score-cell {
+            flex: 1;
+            padding: 4px 2px;
+            min-width: 0;
+            min-height: 40px;
+            background: transparent;
+            color: #fff;
+            border: 0;
+            border-right: 1px solid #333333;
+            font-size: inherit;
+            cursor: pointer;
+        }
+        .score-cell:last-child {
+            border-right: none;
+            font-weight: bold;
+            color: #00ff66;
+        }
+        .score-cell:disabled, .player-col:disabled, .btn-scan:disabled, .btn-top:disabled, .btn-bottom-red:disabled, #btn-corregir-puntajes:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+        .table-footer {
+            padding: 6px;
+            background-color: #111111;
+            border-top: 2px solid #ffffff;
+        }
+        .btn-scan {
+            width: 100%;
+            background-color: #1b4d1b;
+            color: #00ff66;
+            border: 2px solid #00ff66;
+            border-radius: 8px;
+            padding: 8px 2px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+        }
+        /* Bottom Controls */
+        .bottom-controls {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            margin-top: 4px;
+        }
+        .btn-bottom-red {
+            flex: 2;
+            background-color: #cc0000;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            border-radius: 14px;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: bold;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .btn-bottom-blue {
+            flex: 1;
+            background-color: #0044cc;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            border-radius: 14px;
+            padding: 12px;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+        /* Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 16px;
+        }
+        .modal-content {
+            background-color: #111111;
+            border: 2px solid #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+        }
+        .modal-content h3 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .modal-content input, .modal-content select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 12px;
+            background-color: #000;
+            color: #fff;
+            border: 1px solid #fff;
+            border-radius: 6px;
+            font-size: 16px;
+            text-align: center;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .modal-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 1px solid #fff;
+        }
+        .btn-confirm { background-color: #00aa00; color: #fff; }
+        .btn-cancel { background-color: #aa0000; color: #fff; }
+        .score-keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .score-keypad button {
+            padding: 10px;
+            background: #222;
+            color: #fff;
+            border: 1px solid #777;
+            border-radius: 6px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        #modal-puntos .modal-content {
+            max-height: 100%;
+            overflow-y: auto;
+        }
+        #error-puntos {
+            color: #ff7777;
+            margin-bottom: 8px;
+        }
+        @media (max-height: 520px) {
+            #modal-puntos .modal-content { padding: 10px; }
+            #modal-puntos h3 { margin-bottom: 6px; }
+            #modal-puntos input, #modal-puntos select { padding: 6px; margin-bottom: 6px; }
+            .score-keypad { gap: 4px; margin-bottom: 6px; }
+            .score-keypad button { padding: 4px; }
+        }
+        
+        /* Camera Mock View */
+        #camera-view {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            background: #000;
+            z-index: 2000;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+        }
+        .camera-container {
+            position: relative;
+            width: 100%;
+            flex: 1;
+            min-height: 0;
+            margin: 6px 0;
+            overflow: hidden;
+            border-radius: 12px;
+            background: #111;
+        }
+        .camera-container video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .camera-box {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 94%;
+            height: 94%;
+            transform: translate(-50%, -50%);
+            border: 3px solid #00ff66;
+            border-radius: 12px;
+            box-shadow: none;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            color: #00ff66;
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+            padding: 6px;
+            overflow: hidden;
+            animation: boxBlink 1.2s ease-in-out infinite;
+        }
+        .scan-laser {
+            position: absolute;
+            left: 0; right: 0;
+            height: 3px;
+            background: #ff2a2a;
+            box-shadow: 0 0 10px 3px rgba(255,42,42,0.8);
+            animation: laserMove 1.8s linear infinite alternate, laserBlink 0.6s steps(2) infinite;
+        }
+        @keyframes laserMove { from { top: 0; } to { top: calc(100% - 3px); } }
+        @keyframes laserBlink { 50% { opacity: 0.45; } }
+        @keyframes boxBlink { 50% { border-color: #00aa44; } }
+        #canvas-captura {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+        #camera-info {
+            color: #00ff66;
+            font-weight: bold;
+            text-align: center;
+            padding: 4px;
+        }
+        .camera-actions {
+            display: flex;
+            width: 100%;
+            gap: 8px;
+        }
+        .camera-actions .modal-btn {
+            padding: 14px 6px;
+            font-size: 14px;
+        }
+        #resumen-escaneo-detalle {
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOP CONTROLS -->
+    <div class="top-controls">
+        <button class="btn-top green" onclick="abrirTranca()">🔒 ESCANEAR TRANCA</button>
+        <button class="btn-top" onclick="comoVaLaPartida()">🔊 CÓMO VA LA PARTIDA</button>
+    </div>
+
+    <button id="btn-corregir-puntajes" type="button" aria-pressed="false" onclick="alternarCorreccion()" disabled>✏ CORREGIR PUNTAJES</button>
+
+    <!-- TABLES AREA -->
+    <div class="tables-container">
+        <!-- TABLA EQUIPO 1 -->
+        <div class="table-card">
+            <div class="table-header">TABLA EQUIPO 1</div>
+            <div class="table-players">
+                <button type="button" class="player-col" id="p1-label" title="Agregar puntos al equipo 1" onclick="abrirModalPuntos('equipo1', null, false)">Jugador 1</button>
+                <button type="button" class="player-col active-turn" id="p3-label" title="Agregar puntos al equipo 1" onclick="abrirModalPuntos('equipo1', null, false)">Jugador 3</button>
+            </div>
+            <div class="table-body" id="body-equipo1">
+                <!-- Scores injected dynamically -->
+            </div>
+            <div class="table-footer">
+                <button class="btn-scan" onclick="iniciarEscaneo('equipo1')">📷 ESCANEAR PUNTOS EQUIPO 1</button>
+            </div>
+        </div>
+
+        <!-- TABLA EQUIPO 2 -->
+        <div class="table-card">
+            <div class="table-header">TABLA EQUIPO 2</div>
+            <div class="table-players">
+                <button type="button" class="player-col" id="p2-label" title="Agregar puntos al equipo 2" onclick="abrirModalPuntos('equipo2', null, false)">Jugador 2</button>
+                <button type="button" class="player-col" id="p4-label" title="Agregar puntos al equipo 2" onclick="abrirModalPuntos('equipo2', null, false)">Jugador 4</button>
+            </div>
+            <div class="table-body" id="body-equipo2">
+                <!-- Scores injected dynamically -->
+            </div>
+            <div class="table-footer">
+                <button class="btn-scan" onclick="iniciarEscaneo('equipo2')">📷 ESCANEAR PUNTOS EQUIPO 2</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM CONTROLS -->
+    <div class="bottom-controls">
+        <button class="btn-bottom-red" onclick="quienSale()">
+            <span>QUIEN SALE</span> 🔊
+        </button>
+        <button class="btn-bottom-blue" onclick="reiniciarPartida()">
+            🔄 NUEVA PARTIDA
+        </button>
+    </div>
+
+    <!-- CONFIG / SETUP MODAL ON START -->
+    <div id="modal-config" class="modal" style="display: flex;">
+        <div class="modal-content">
+            <h3>CONFIGURAR JUGADORES</h3>
+            <p style="font-size: 12px; margin-bottom: 10px; color: #ccc;">El Jugador 1 es quien tiene la cochina (doble 6) y sale primero. Compañeros: 1 y 3 contra 2 y 4. Si dejas un campo vacío se usa el nombre por defecto.</p>
+            <input type="text" id="input-p1" placeholder="Jugador 1">
+            <input type="text" id="input-p3" placeholder="Jugador 3">
+            <input type="text" id="input-p2" placeholder="Jugador 2">
+            <input type="text" id="input-p4" placeholder="Jugador 4">
+            <button class="modal-btn btn-confirm" style="width:100%; padding: 12px;" onclick="guardarConfiguracion()">¡COMENZAR JUEGO!</button>
+        </div>
+    </div>
+
+    <!-- MODAL INGRESO DE PUNTOS -->
+    <div id="modal-puntos" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-puntos-titulo">
+        <form class="modal-content" onsubmit="confirmarPuntos(); return false;">
+            <h3 id="modal-puntos-titulo">Registrar Puntos</h3>
+            <label for="input-puntos-valor">Puntos</label>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-puntos-valor" placeholder="Puntos" autocomplete="off">
+            <div class="score-keypad" aria-label="Teclado numérico">
+                <button type="button" onclick="teclaPuntos('1')">1</button>
+                <button type="button" onclick="teclaPuntos('2')">2</button>
+                <button type="button" onclick="teclaPuntos('3')">3</button>
+                <button type="button" onclick="teclaPuntos('4')">4</button>
+                <button type="button" onclick="teclaPuntos('5')">5</button>
+                <button type="button" onclick="teclaPuntos('6')">6</button>
+                <button type="button" onclick="teclaPuntos('7')">7</button>
+                <button type="button" onclick="teclaPuntos('8')">8</button>
+                <button type="button" onclick="teclaPuntos('9')">9</button>
+                <button type="button" onclick="teclaPuntos('borrar')" aria-label="Borrar último dígito">⌫</button>
+                <button type="button" onclick="teclaPuntos('0')">0</button>
+                <button type="button" onclick="teclaPuntos('limpiar')">C</button>
+            </div>
+            <p id="error-puntos" role="alert"></p>
+            <div class="modal-buttons">
+                <button type="button" class="modal-btn btn-cancel" onclick="cerrarModalPuntos()">Cancelar</button>
+                <button type="submit" class="modal-btn btn-confirm">Aceptar</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modal-victoria" class="modal" role="dialog" aria-modal="true" aria-labelledby="victoria-titulo">
+        <div class="modal-content">
+            <h3 id="victoria-titulo">¡Partida terminada!</h3>
+            <p id="victoria-mensaje"></p>
+            <div class="modal-buttons" style="margin-top: 16px;">
+                <button type="button" class="modal-btn btn-cancel" onclick="document.getElementById('modal-victoria').style.display = 'none'">Cerrar</button>
+                <button type="button" class="modal-btn btn-confirm" onclick="reiniciarPartida()">Nueva partida</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-resumen-escaneo" class="modal" role="dialog" aria-modal="true" aria-labelledby="resumen-escaneo-titulo">
+        <div class="modal-content">
+            <h3 id="resumen-escaneo-titulo">Resultado del escaneo</h3>
+            <div id="resumen-escaneo-detalle"></div>
+            <div class="modal-buttons">
+                <button type="button" class="modal-btn btn-cancel" onclick="cancelarEscaneo()">Cancelar</button>
+                <button type="button" class="modal-btn btn-confirm" onclick="confirmarEscaneo()">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CÁMARA SIMULADA / LECTOR INTELIGENTE -->
+    <div id="camera-view">
+        <div style="font-size: 16px; font-weight:bold; color:#00ff66;">LECTOR DE FICHAS ACTIVO</div>
+        <div class="camera-container">
+            <video id="camera-video" autoplay playsinline muted></video>
+            <div class="camera-box">
+                <div class="scan-laser"></div>
+                <span id="camera-status-text">Separa las fichas sobre la mesa. Escaneo automático.</span>
+            </div>
+            <canvas id="canvas-captura" style="display:none;"></canvas>
+        </div>
+        <div id="camera-info">Fichas: 0 | Puntos: 0</div>
+        <div class="camera-actions">
+            <button class="modal-btn btn-cancel" onclick="cancelarEscaneo()">CANCELAR</button>
+        </div>
+    </div>
+
+    <script>
+        let jugadores = ["Jugador 1", "Jugador 2", "Jugador 3", "Jugador 4"];
+        let vozMasculinaSeleccionada = null;
+        let puntajesEq1 = [];
+        let puntajesEq2 = [];
+        let equipoPuntosManual = null;
+        let indicePuntosManual = null;
+        let corrigiendoPuntosManual = false;
+        let modoCorreccion = false;
+        let partidaFinalizada = false;
+        let turnoSalidaIndex = 0; // 0: P1, 1: P2, 2: P3, 3: P4 (Rotación 1->2->3->4)
+        let equipoSeleccionadoScan = '';
+        let tipoEscaneo = 'normal'; // 'normal' o 'tranca'
+        let trancaPaso = 1;
+        let puntosTrancaEq1 = 0;
+        let resultadoEscaneo = null;
+
+        function cargarVozMasculina() {
+            if ('speechSynthesis' in window) {
+                let voces = window.speechSynthesis.getVoices();
+                let vocesEspanol = voces.filter(v => v.lang.toLowerCase().startsWith('es'));
+                
+                vozMasculinaSeleccionada = vocesEspanol.find(v => v.name.toLowerCase().includes('google') && !/(female|femenina|mujer|helena|laura|sabina|paulina|m[oó]nica|luc[ií]a|elena|sof[ií]a|camila|mar[ií]a)/i.test(v.name))
+                    || vocesEspanol.find(v => /male|masculino|hombre|carlos|juan|pedro|luis|diego|mario|jorge|miguel|andres|alejandro/i.test(v.name))
+                    || vocesEspanol.find(v => !/(female|femenina|mujer|helena|laura|sabina|paulina|m[oó]nica|luc[ií]a|elena|sof[ií]a|camila|mar[ií]a)/i.test(v.name))
+                    || vocesEspanol[0]
+                    || null;
+            }
+        }
+
+        function hablar(texto) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                
+                if (vozMasculinaSeleccionada === null) {
+                    cargarVozMasculina();
+                }
+                
+                const diccionarioFonetico = {
+                    'july': 'Llúli',
+                    'domino': 'dominó',
+                    'zapatero': 'sapatero',
+                    'veintiuno': 'veintiún',
+                    'treinta y uno': 'treinta y un',
+                    'cuarenta y uno': 'cuarenta y un',
+                    'cincuenta y uno': 'cincuenta y un',
+                    'sesenta y uno': 'sesenta y un',
+                    'setenta y uno': 'setenta y un',
+                    'ochenta y uno': 'ochenta y un',
+                    'noventa y uno': 'noventa y un',
+                    // Agrega aquí apodos o nombres con su pronunciación deseada.
+                };
+                let textoParaHablar = Object.entries(diccionarioFonetico).reduce((textoActual, [palabra, pronunciacion]) => {
+                    const palabraEscapada = palabra.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const patron = new RegExp(`(^|[^\\p{L}\\p{N}_])${palabraEscapada}(?=$|[^\\p{L}\\p{N}_])`, 'giu');
+                    return textoActual.replace(patron, (_, separador) => `${separador}${pronunciacion}`);
+                }, texto);
+                const numerosConUn = {
+                    '1': 'un',
+                    '21': 'veintiún',
+                    '31': 'treinta y un',
+                    '41': 'cuarenta y un',
+                    '51': 'cincuenta y un',
+                    '61': 'sesenta y un',
+                    '71': 'setenta y un',
+                    '81': 'ochenta y un',
+                    '91': 'noventa y un'
+                };
+                const centenas = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos',
+                    'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
+                textoParaHablar = textoParaHablar.replace(
+                    /(^|[^\p{L}\p{N}_])(\d+)(\s+)puntos\b/giu,
+                    (coincidencia, separador, numero, espacio) => {
+                        const valor = Number(numero);
+                        const final = numerosConUn[valor % 100];
+                        if (valor > 999 || !final) return coincidencia;
+                        const centena = centenas[Math.floor(valor / 100)];
+                        return `${separador}${centena ? centena + ' ' : ''}${final}${espacio}${valor === 1 ? 'punto' : 'puntos'}`;
+                    }
+                ).replace(/(^|[^\p{L}\p{N}_])(ciento|doscientos|trescientos|cuatrocientos|quinientos|seiscientos|setecientos|ochocientos|novecientos|mil|millón|millones)(\s+)uno(?=$|[^\p{L}\p{N}_])/giu, '$1$2$3un')
+                    .replace(/(^|[^\p{L}\p{N}_])uno(\s+)puntos?\b/giu, '$1un$2punto');
+                let utterance = new SpeechSynthesisUtterance(textoParaHablar);
+                utterance.lang = 'es-VE';
+                utterance.rate = 0.8;
+                utterance.pitch = 1.0;
+                
+                if (vozMasculinaSeleccionada) {
+                    utterance.voice = vozMasculinaSeleccionada;
+                }
+                
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function guardarConfiguracion() {
+            let p1 = document.getElementById('input-p1').value.trim() || "Jugador 1";
+            let p2 = document.getElementById('input-p2').value.trim() || "Jugador 2";
+            let p3 = document.getElementById('input-p3').value.trim() || "Jugador 3";
+            let p4 = document.getElementById('input-p4').value.trim() || "Jugador 4";
+            
+            jugadores = [p1, p2, p3, p4];
+            
+            document.getElementById('p1-label').innerText = p1;
+            document.getElementById('p2-label').innerText = p2;
+            document.getElementById('p3-label').innerText = p3;
+            document.getElementById('p4-label').innerText = p4;
+            
+            document.getElementById('modal-config').style.display = 'none';
+            actualizarTablas();
+            hablar("¡Partida iniciada! Sale " + jugadores[turnoSalidaIndex]);
+        }
+
+        function actualizarTablas() {
+            let body1 = document.getElementById('body-equipo1');
+            let body2 = document.getElementById('body-equipo2');
+            
+            body1.innerHTML = '';
+            body2.innerHTML = '';
+            
+            let total1 = 0;
+            let total2 = 0;
+            
+            let maxLen = Math.max(puntajesEq1.length, puntajesEq2.length, 1);
+            
+            for (let i = 0; i < maxLen; i++) {
+                let p1 = puntajesEq1[i] !== undefined ? puntajesEq1[i] : '';
+                total1 += (puntajesEq1[i] || 0);
+                
+                let p2 = puntajesEq2[i] !== undefined ? puntajesEq2[i] : '';
+                total2 += (puntajesEq2[i] || 0);
+                
+                if (p1 !== '' || i === 0 && puntajesEq1.length === 0) {
+                    agregarFilaPuntaje(body1, 'equipo1', i, p1, total1);
+                }
+                if (p2 !== '' || i === 0 && puntajesEq2.length === 0) {
+                    agregarFilaPuntaje(body2, 'equipo2', i, p2, total2);
+                }
+            }
+            
+            // Actualizar indicador visual de turno en los nombres
+            for(let idx=1; idx<=4; idx++) {
+                document.getElementById(`p${idx}-label`).classList.remove('active-turn');
+            }
+            let mapTurnoToLabel = [1, 2, 3, 4]; // P1, P2, P3, P4
+            // Nota visual en tabla: Eq1 tiene P1 y P3, Eq2 tiene P2 y P4
+            let activeId = '';
+            if (turnoSalidaIndex === 0) activeId = 'p1-label';
+            else if (turnoSalidaIndex === 1) activeId = 'p2-label';
+            else if (turnoSalidaIndex === 2) activeId = 'p3-label';
+            else if (turnoSalidaIndex === 3) activeId = 'p4-label';
+            document.getElementById(activeId).classList.add('active-turn');
+
+            if (!partidaFinalizada && (total1 >= 100 || total2 >= 100)) {
+                partidaFinalizada = true;
+                const equipoGanador = total1 >= 100 ? 1 : 2;
+                const ganador = equipoGanador === 1 ? `${jugadores[0]} y ${jugadores[2]}` : `${jugadores[1]} y ${jugadores[3]}`;
+                const perdedorPuntos = equipoGanador === 1 ? total2 : total1;
+                const mensaje = `¡Ganó el equipo ${equipoGanador}: ${ganador}!` +
+                    (perdedorPuntos === 0 ? ' ¡Zapatero!' : '');
+                document.getElementById('victoria-mensaje').textContent = mensaje;
+                document.getElementById('modal-victoria').style.display = 'flex';
+                hablar(mensaje);
+            }
+            document.querySelectorAll('.btn-scan, .btn-top.green, .btn-bottom-red')
+                .forEach(boton => { boton.disabled = partidaFinalizada; });
+            document.querySelectorAll('.player-col')
+                .forEach(boton => { boton.disabled = partidaFinalizada || modoCorreccion; });
+            document.querySelectorAll('.score-cell')
+                .forEach(boton => { boton.disabled = partidaFinalizada || (modoCorreccion && boton.dataset.sinRegistro === 'true'); });
+            const botonCorreccion = document.getElementById('btn-corregir-puntajes');
+            botonCorreccion.disabled = partidaFinalizada || (!puntajesEq1.length && !puntajesEq2.length);
+            botonCorreccion.setAttribute('aria-pressed', String(modoCorreccion));
+            botonCorreccion.textContent = modoCorreccion ? '✏ TOCA UNA FILA · CANCELAR' : '✏ CORREGIR PUNTAJES';
+            return partidaFinalizada;
+        }
+
+        function agregarFilaPuntaje(body, equipo, indice, puntos, total) {
+            const fila = document.createElement('div');
+            fila.className = 'score-row';
+            const etiquetaEquipo = equipo === 'equipo1' ? 'equipo 1' : 'equipo 2';
+            for (const [valor, etiqueta] of [[puntos, 'Puntos'], [total, 'Total']]) {
+                const celda = document.createElement('button');
+                celda.type = 'button';
+                celda.className = 'score-cell';
+                const corregir = modoCorreccion && puntos !== '';
+                const accion = corregir ? 'Corregir esta anotación' : 'Agregar una anotación';
+                celda.setAttribute('aria-label', `${etiqueta}: ${valor === '' ? 'sin registrar' : valor}. ${accion} del ${etiquetaEquipo}`);
+                celda.dataset.sinRegistro = String(puntos === '');
+                celda.title = accion;
+                celda.textContent = valor === '' ? '+' : valor;
+                celda.addEventListener('click', () => abrirModalPuntos(equipo, indice, corregir));
+                fila.appendChild(celda);
+            }
+            body.appendChild(fila);
+        }
+
+        function alternarCorreccion() {
+            if (partidaFinalizada || (!puntajesEq1.length && !puntajesEq2.length)) return;
+            modoCorreccion = !modoCorreccion;
+            actualizarTablas();
+        }
+
+        function quienSale() {
+            let nombreSale = jugadores[turnoSalidaIndex];
+            hablar("¡Sale " + nombreSale + "!");
+        }
+
+        function comoVaLaPartida() {
+            const total1 = puntajesEq1.reduce((a, b) => a + b, 0);
+            const total2 = puntajesEq2.reduce((a, b) => a + b, 0);
+            const puntos = total => total === 1 ? 'un punto' : `${total} puntos`;
+            hablar(`Equipo 1 tiene ${puntos(total1)} y equipo 2 tiene ${puntos(total2)}.`);
+        }
+
+        const NUMEROS = { blanco: 0, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6 };
+        const NOMBRES_FICHAS = ["blanco uno","blanco dos","blanco tres","blanco cuatro","blanco cinco","blanco seis",
+            "uno dos","uno tres","uno cuatro","uno cinco","uno seis","dos tres","dos cuatro","dos cinco","dos seis",
+            "tres cuatro","tres cinco","tres seis","cuatro cinco","cuatro seis","cinco seis",
+            "doble blanco","doble uno","doble dos","doble tres","doble cuatro","doble cinco","doble seis"];
+        const TW = 96, TH = 48;
+        // Correlación mínima (0 a 1) para aceptar una ficha: súbela si da falsos positivos, bájala si no detecta.
+        let UMBRAL_COINCIDENCIA = 0.55;
+        let streamCamara = null;
+        let procesandoFoto = false;
+        let temporizadorEscaneo = null;
+        let sesionCamara = 0;
+        let fotogramaAnterior = null;
+        let fotogramaTranca = null;
+        let esperandoCambioTranca = false;
+        let estableDesde = null;
+        let lecturaAnterior = null;
+        const canvasEstabilidad = document.createElement('canvas');
+        canvasEstabilidad.width = 64;
+        canvasEstabilidad.height = 48;
+        let cvListo = null;
+
+        // OpenCV.js local (lib/opencv.js), cargado bajo demanda y cacheado por sw.js
+        function cargarOpenCV() {
+            if (cvListo) return cvListo;
+            cvListo = new Promise((resolve, reject) => {
+                const listo = () => (typeof cv !== 'undefined' && cv.Mat);
+                const esperar = () => {
+                    if (listo()) return resolve();
+                    if (typeof cv.then === 'function') {
+                        cv.then((m) => { window.cv = m; delete m.then; resolve(); });
+                    } else {
+                        cv['onRuntimeInitialized'] = () => resolve();
+                    }
+                };
+                if (typeof cv !== 'undefined') return esperar();
+                const s = document.createElement('script');
+                s.src = 'lib/opencv.js';
+                s.onload = esperar;
+                s.onerror = () => { cvListo = null; reject(new Error('No se pudo cargar lib/opencv.js')); };
+                document.head.appendChild(s);
+            });
+            return cvListo;
+        }
+        let plantillas = null;
+        let fichasCapturadas = [];
+
+        function puntosDeFicha(nombre) {
+            if (nombre.startsWith('doble ')) return 2 * NUMEROS[nombre.slice(6)];
+            return nombre.split(' ').reduce((s, w) => s + (NUMEROS[w] || 0), 0);
+        }
+
+        function aGrisNormalizado(srcCanvas, rotar180) {
+            const c = document.createElement('canvas');
+            c.width = TW; c.height = TH;
+            const ctx = c.getContext('2d', { willReadFrequently: true });
+            if (rotar180) { ctx.translate(TW, TH); ctx.rotate(Math.PI); }
+            ctx.drawImage(srcCanvas, 0, 0, TW, TH);
+            const d = ctx.getImageData(0, 0, TW, TH).data;
+            const g = new Float32Array(TW * TH);
+            let media = 0;
+            for (let i = 0; i < g.length; i++) {
+                g[i] = 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2];
+                media += g[i];
+            }
+            media /= g.length;
+            let norma = 0;
+            for (let i = 0; i < g.length; i++) { g[i] -= media; norma += g[i] * g[i]; }
+            norma = Math.sqrt(norma) || 1;
+            for (let i = 0; i < g.length; i++) g[i] /= norma;
+            return g;
+        }
+
+        function cargarImagen(src) {
+            return new Promise((res, rej) => {
+                const img = new Image();
+                img.onload = () => res(img);
+                img.onerror = rej;
+                img.src = src;
+            });
+        }
+
+        // Cada imagen de ubicacion/ es una tabla con la ficha en 8 orientaciones y su puntaje.
+        // Se usan las dos celdas horizontales (fila 2 y 3, columna 3) como plantillas, recortadas a la ficha.
+        const CELDAS_PLANTILLA = [
+            { x0: 478 / 1195, x1: 715 / 1195, y0: 133 / 684, y1: 342 / 684 },
+            { x0: 478 / 1195, x1: 715 / 1195, y0: 342 / 684, y1: 548 / 684 }
+        ];
+
+        function recortarFichasPlantilla(img) {
+            const W = img.naturalWidth, H = img.naturalHeight;
+            const full = document.createElement('canvas');
+            full.width = W; full.height = H;
+            const fctx = full.getContext('2d', { willReadFrequently: true });
+            fctx.drawImage(img, 0, 0);
+            const salida = [];
+            for (const celda of CELDAS_PLANTILLA) {
+                const inset = 6;
+                const cx = Math.round(celda.x0 * W) + inset, cy = Math.round(celda.y0 * H) + inset;
+                const cw = Math.round((celda.x1 - celda.x0) * W) - 2 * inset;
+                const ch = Math.round((celda.y1 - celda.y0) * H) - 2 * inset;
+                const d = fctx.getImageData(cx, cy, cw, ch).data;
+                let minX = cw, minY = ch, maxX = -1, maxY = -1;
+                for (let y = 0; y < ch; y++) {
+                    for (let x = 0; x < cw; x++) {
+                        const i = (y * cw + x) * 4;
+                        if (0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2] < 245) {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+                if (maxX < 0) continue;
+                const c = document.createElement('canvas');
+                c.width = maxX - minX + 1; c.height = maxY - minY + 1;
+                c.getContext('2d').drawImage(full, cx + minX, cy + minY, c.width, c.height, 0, 0, c.width, c.height);
+                salida.push(c);
+            }
+            return salida;
+        }
+
+        async function cargarPlantillas() {
+            if (plantillas) return plantillas;
+            const lista = [];
+            for (const nombre of NOMBRES_FICHAS) {
+                try {
+                    const img = await cargarImagen('imagen/ubicacion/' + nombre + '.png');
+                    for (const c of recortarFichasPlantilla(img)) {
+                        lista.push({ nombre, datos: aGrisNormalizado(c, false) });
+                    }
+                } catch (e) { /* plantilla no disponible */ }
+            }
+            plantillas = lista;
+            return lista;
+        }
+
+        async function iniciarCamara() {
+            const sesion = ++sesionCamara;
+            const video = document.getElementById('camera-video');
+            fichasCapturadas = [];
+            fotogramaAnterior = null;
+            estableDesde = null;
+            lecturaAnterior = null;
+            esperandoCambioTranca = tipoEscaneo === 'tranca' && trancaPaso === 2 && !!fotogramaTranca;
+            document.getElementById('canvas-captura').style.display = 'none';
+            document.getElementById('camera-status-text').innerText = "Separa las fichas sobre la mesa. Escaneo automático.";
+            actualizarInfoCamara();
+            document.getElementById('camera-view').style.display = 'flex';
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        advanced: [{ focusMode: 'continuous' }, { exposureMode: 'continuous' }]
+                    }, audio: false
+                });
+                if (sesion !== sesionCamara) {
+                    stream.getTracks().forEach(t => t.stop());
+                    return;
+                }
+                streamCamara = stream;
+                video.srcObject = streamCamara;
+                temporizadorEscaneo = setInterval(analizarEstabilidad, 350);
+            } catch (e) {
+                if (sesion !== sesionCamara) return;
+                detenerCamara();
+                alert("No se pudo acceder a la cámara: " + e.message);
+            }
+        }
+
+        function detenerCamara() {
+            sesionCamara++;
+            clearInterval(temporizadorEscaneo);
+            temporizadorEscaneo = null;
+            procesandoFoto = false;
+            if (streamCamara) {
+                streamCamara.getTracks().forEach(t => t.stop());
+                streamCamara = null;
+            }
+            document.getElementById('camera-video').srcObject = null;
+            document.getElementById('camera-view').style.display = 'none';
+        }
+
+        function actualizarInfoCamara() {
+            const total = fichasCapturadas.reduce((s, f) => s + f.puntos, 0);
+            const ultima = fichasCapturadas.length ? " | Última: " + fichasCapturadas[fichasCapturadas.length - 1].nombre : "";
+            document.getElementById('camera-info').innerText = `Fichas: ${fichasCapturadas.length} | Puntos: ${total}${ultima}`;
+        }
+
+        function obtenerFotograma(video) {
+            const ctx = canvasEstabilidad.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(video, 0, 0, canvasEstabilidad.width, canvasEstabilidad.height);
+            const rgba = ctx.getImageData(0, 0, canvasEstabilidad.width, canvasEstabilidad.height).data;
+            const gris = new Uint8Array(canvasEstabilidad.width * canvasEstabilidad.height);
+            let detalle = 0;
+            for (let i = 0; i < gris.length; i++) {
+                gris[i] = 0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2];
+                if (i % canvasEstabilidad.width) detalle += Math.abs(gris[i] - gris[i - 1]);
+            }
+            return { gris, detalle: detalle / gris.length };
+        }
+
+        function diferenciaFotogramas(a, b) {
+            let diferencia = 0;
+            for (let i = 0; i < a.length; i++) diferencia += Math.abs(a[i] - b[i]);
+            return diferencia / a.length;
+        }
+
+        function analizarEstabilidad() {
+            const video = document.getElementById('camera-video');
+            if (!streamCamara || !video.videoWidth || procesandoFoto) return;
+            try {
+                const actual = obtenerFotograma(video);
+                const estado = document.getElementById('camera-status-text');
+                if (esperandoCambioTranca) {
+                    if (diferenciaFotogramas(actual.gris, fotogramaTranca) < 10) {
+                        fotogramaAnterior = null;
+                        estableDesde = null;
+                        lecturaAnterior = null;
+                        estado.innerText = "Cambia las fichas para escanear el equipo 2.";
+                        return;
+                    }
+                }
+                const movimiento = fotogramaAnterior && diferenciaFotogramas(actual.gris, fotogramaAnterior);
+                fotogramaAnterior = actual.gris;
+                if (movimiento === null || movimiento > 3 || actual.detalle < 3) {
+                    estableDesde = null;
+                    lecturaAnterior = null;
+                    estado.innerText = "Mantén el teléfono firme y enfoca las fichas.";
+                    return;
+                }
+                if (estableDesde === null) estableDesde = performance.now();
+                if (performance.now() - estableDesde >= 1800) procesarFoto(actual.gris);
+            } catch (e) {
+                console.error("Error analizando la cámara:", e);
+                document.getElementById('camera-status-text').innerText = "Error: " + e.message;
+                clearInterval(temporizadorEscaneo);
+                temporizadorEscaneo = null;
+            }
+        }
+
+        // Detecta fichas rectangulares con OpenCV y devuelve cada una enderezada (128x64, lado largo horizontal)
+        function detectarFichas(canvasOrigen) {
+            const W = 128, H = 64;
+            const resultado = [];
+            const mats = [];
+            const nuevo = (m) => { mats.push(m); return m; };
+            try {
+                const src = nuevo(cv.imread(canvasOrigen));
+                const gris = nuevo(new cv.Mat());
+                cv.cvtColor(src, gris, cv.COLOR_RGBA2GRAY);
+                cv.GaussianBlur(gris, gris, new cv.Size(5, 5), 0);
+                const bin = nuevo(new cv.Mat());
+                cv.threshold(gris, bin, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
+                // Las fichas deben ser la minoría de la imagen: si no, se invierte
+                if (cv.countNonZero(bin) > (bin.rows * bin.cols) / 2) cv.bitwise_not(bin, bin);
+                const kernel = nuevo(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5)));
+                cv.morphologyEx(bin, bin, cv.MORPH_CLOSE, kernel);
+
+                const contornos = nuevo(new cv.MatVector());
+                const jerarquia = nuevo(new cv.Mat());
+                cv.findContours(bin, contornos, jerarquia, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+                const areaImg = bin.rows * bin.cols;
+
+                for (let i = 0; i < contornos.size(); i++) {
+                    const c = contornos.get(i);
+                    const area = cv.contourArea(c);
+                    if (area < areaImg * 0.004 || area > areaImg * 0.5) { c.delete(); continue; }
+                    const rect = cv.minAreaRect(c);
+                    c.delete();
+                    const largo = Math.max(rect.size.width, rect.size.height);
+                    const corto = Math.min(rect.size.width, rect.size.height);
+                    if (corto < 1) continue;
+                    const ratio = largo / corto;
+                    if (ratio < 1.5 || ratio > 2.6 || area / (largo * corto) < 0.8) continue;
+
+                    let p = cv.RotatedRect.points(rect);
+                    const d01 = Math.hypot(p[1].x - p[0].x, p[1].y - p[0].y);
+                    const d12 = Math.hypot(p[2].x - p[1].x, p[2].y - p[1].y);
+                    if (d12 > d01) p = [p[1], p[2], p[3], p[0]];
+
+                    const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [p[0].x, p[0].y, p[1].x, p[1].y, p[2].x, p[2].y, p[3].x, p[3].y]);
+                    const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, W, 0, W, H, 0, H]);
+                    const M = cv.getPerspectiveTransform(srcTri, dstTri);
+                    const warp = new cv.Mat();
+                    cv.warpPerspective(src, warp, M, new cv.Size(W, H), cv.INTER_LINEAR, cv.BORDER_REPLICATE);
+                    const cvs = document.createElement('canvas');
+                    cv.imshow(cvs, warp);
+                    [srcTri, dstTri, M, warp].forEach(m => m.delete());
+                    resultado.push({ canvas: cvs, puntos: p });
+                }
+            } finally {
+                mats.forEach(m => { try { m.delete(); } catch (e) { /* ya liberado */ } });
+            }
+            return resultado;
+        }
+
+        function clasificarFicha(canvas, lista) {
+            const caps = [aGrisNormalizado(canvas, false)];
+            let mejor = null, mejorScore = -1;
+            for (const p of lista) {
+                for (const cap of caps) {
+                    let s = 0;
+                    for (let i = 0; i < cap.length; i++) s += cap[i] * p.datos[i];
+                    if (s > mejorScore) { mejorScore = s; mejor = p; }
+                }
+            }
+            return { mejor, score: mejorScore };
+        }
+
+        async function procesarFoto(fotogramaEstable) {
+            const video = document.getElementById('camera-video');
+            const canvas = document.getElementById('canvas-captura');
+            const estado = document.getElementById('camera-status-text');
+            if (procesandoFoto || !streamCamara || !video.videoWidth) return;
+            const sesion = sesionCamara;
+            procesandoFoto = true;
+            estado.innerText = "Procesando escaneo...";
+            try {
+                const [lista] = await Promise.all([cargarPlantillas(), cargarOpenCV()]);
+                if (sesion !== sesionCamara) return;
+                if (!lista.length) throw new Error("No se pudieron cargar las plantillas de fichas.");
+                if (diferenciaFotogramas(obtenerFotograma(video).gris, fotogramaEstable) > 3) {
+                    estableDesde = null;
+                    lecturaAnterior = null;
+                    return;
+                }
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const candidatas = detectarFichas(canvas).map(f => ({ ...f, ...clasificarFicha(f.canvas, lista) }));
+                candidatas.sort((a, b) => b.score - a.score);
+
+                // Una misma ficha no puede aparecer dos veces en el juego: se conserva la mejor coincidencia
+                const vistas = new Set();
+                fichasCapturadas = [];
+                for (const c of candidatas) {
+                    c.valida = c.mejor && c.score >= UMBRAL_COINCIDENCIA && !vistas.has(c.mejor.nombre);
+                    if (c.valida) {
+                        vistas.add(c.mejor.nombre);
+                        fichasCapturadas.push({ nombre: c.mejor.nombre, puntos: puntosDeFicha(c.mejor.nombre) });
+                    }
+                }
+
+                actualizarInfoCamara();
+                const total = fichasCapturadas.reduce((s, f) => s + f.puntos, 0);
+                const dudosas = candidatas.length - fichasCapturadas.length;
+                estado.innerText = fichasCapturadas.length
+                    ? `${fichasCapturadas.length} fichas, ${total} puntos` + (dudosas ? ` (${dudosas} sin reconocer)` : '')
+                    : "No se detectaron fichas. Separa las fichas y mejora la luz.";
+                const lectura = fichasCapturadas.map(f => f.nombre).sort().join('|');
+                if (lectura && !dudosas && lectura === lecturaAnterior) {
+                    capturarFichasCamara(fotogramaEstable);
+                } else {
+                    lecturaAnterior = dudosas ? null : lectura;
+                }
+            } catch (e) {
+                if (sesion !== sesionCamara) return;
+                console.error("Error procesando la foto:", e);
+                estado.innerText = "Error: " + e.message;
+                clearInterval(temporizadorEscaneo);
+                temporizadorEscaneo = null;
+            } finally {
+                if (sesion === sesionCamara) procesandoFoto = false;
+            }
+        }
+
+        function iniciarEscaneo(equipo) {
+            if (partidaFinalizada) return;
+            resultadoEscaneo = null;
+            equipoSeleccionadoScan = equipo;
+            tipoEscaneo = 'normal';
+            iniciarCamara();
+        }
+
+        function abrirTranca() {
+            if (partidaFinalizada) return;
+            tipoEscaneo = 'tranca';
+            trancaPaso = 1;
+            puntosTrancaEq1 = 0;
+            resultadoEscaneo = null;
+            fotogramaTranca = null;
+            hablar("Modo tranca seleccionado. Escanea las fichas del equipo 1.");
+            iniciarCamara();
+            document.getElementById('camera-status-text').innerHTML = "TRANCA: fichas del Equipo 1";
+        }
+
+        function capturarFichasCamara(fotogramaEstable) {
+            if (partidaFinalizada) return;
+            const puntosLeidos = fichasCapturadas.reduce((s, f) => s + f.puntos, 0);
+            fichasCapturadas = [];
+            if (tipoEscaneo === 'tranca' && trancaPaso === 1) {
+                puntosTrancaEq1 = puntosLeidos;
+                trancaPaso = 2;
+                fotogramaTranca = fotogramaEstable;
+                esperandoCambioTranca = true;
+                fotogramaAnterior = null;
+                estableDesde = null;
+                lecturaAnterior = null;
+                actualizarInfoCamara();
+                document.getElementById('camera-status-text').innerText = "Cambia las fichas para escanear el equipo 2.";
+                hablar("Le toca a las fichas del equipo 2");
+                return;
+            }
+
+            if (tipoEscaneo === 'normal') {
+                resultadoEscaneo = { tipo: 'normal', equipo: equipoSeleccionadoScan, puntos: puntosLeidos };
+            } else {
+                resultadoEscaneo = { tipo: 'tranca', puntosEq1: puntosTrancaEq1, puntosEq2: puntosLeidos };
+            }
+            detenerCamara();
+            mostrarResumenEscaneo();
+        }
+
+        function mostrarResumenEscaneo() {
+            const detalle = document.getElementById('resumen-escaneo-detalle');
+            detalle.replaceChildren();
+            const lineas = resultadoEscaneo.tipo === 'tranca'
+                ? [`Equipo 1: ${resultadoEscaneo.puntosEq1} puntos`, `Equipo 2: ${resultadoEscaneo.puntosEq2} puntos`]
+                : [
+                    `Puntos detectados: ${resultadoEscaneo.puntos}`,
+                    `Total del ${resultadoEscaneo.equipo === 'equipo1' ? 'Equipo 1' : 'Equipo 2'}: ${
+                        (resultadoEscaneo.equipo === 'equipo1' ? puntajesEq1 : puntajesEq2)
+                            .reduce((suma, puntos) => suma + puntos, 0) + resultadoEscaneo.puntos
+                    } puntos`
+                ];
+            for (const linea of lineas) {
+                const parrafo = document.createElement('p');
+                parrafo.textContent = linea;
+                detalle.appendChild(parrafo);
+            }
+            document.getElementById('modal-resumen-escaneo').style.display = 'flex';
+        }
+
+        function cancelarEscaneo() {
+            detenerCamara();
+            resultadoEscaneo = null;
+            fichasCapturadas = [];
+            puntosTrancaEq1 = 0;
+            trancaPaso = 1;
+            fotogramaTranca = null;
+            document.getElementById('modal-resumen-escaneo').style.display = 'none';
+        }
+
+        function confirmarEscaneo() {
+            if (partidaFinalizada || !resultadoEscaneo) return;
+            const resultado = resultadoEscaneo;
+            resultadoEscaneo = null;
+            document.getElementById('modal-resumen-escaneo').style.display = 'none';
+            let anuncio;
+            if (resultado.tipo === 'normal') {
+                const puntajes = resultado.equipo === 'equipo1' ? puntajesEq1 : puntajesEq2;
+                puntajes.push(resultado.puntos);
+                anuncio = `Total, ${puntajes.reduce((suma, puntos) => suma + puntos, 0)} puntos`;
+            } else if (resultado.puntosEq1 < resultado.puntosEq2) {
+                puntajesEq1.push(resultado.puntosEq2);
+                anuncio = `Gana la tranca el equipo 1 con ${resultado.puntosEq2} puntos.`;
+            } else if (resultado.puntosEq2 < resultado.puntosEq1) {
+                puntajesEq2.push(resultado.puntosEq1);
+                anuncio = `Gana la tranca el equipo 2 con ${resultado.puntosEq1} puntos.`;
+            } else {
+                if (turnoSalidaIndex === 0 || turnoSalidaIndex === 2) puntajesEq1.push(0);
+                else puntajesEq2.push(0);
+                anuncio = "Empate en la tranca. Se registra cero al equipo que sale.";
+            }
+            turnoSalidaIndex = (turnoSalidaIndex + 1) % 4;
+            if (!actualizarTablas()) hablar(anuncio);
+        }
+
+        function abrirModalPuntos(equipo, indice, corregir) {
+            if (partidaFinalizada) return;
+            equipoPuntosManual = equipo;
+            indicePuntosManual = indice;
+            corrigiendoPuntosManual = corregir;
+            document.getElementById('modal-puntos-titulo').innerText = "Puntos para " + (equipo === 'equipo1' ? 'Equipo 1' : 'Equipo 2');
+            const puntajes = equipo === 'equipo1' ? puntajesEq1 : puntajesEq2;
+            document.getElementById('input-puntos-valor').value = corregir ? puntajes[indice] : '';
+            document.getElementById('error-puntos').textContent = '';
+            document.getElementById('modal-puntos').style.display = 'flex';
+        }
+
+        function teclaPuntos(tecla) {
+            const input = document.getElementById('input-puntos-valor');
+            if (tecla === 'limpiar') input.value = '';
+            else if (tecla === 'borrar') input.value = input.value.slice(0, -1);
+            else input.value += tecla;
+            document.getElementById('error-puntos').textContent = '';
+        }
+
+        function cerrarModalPuntos(actualizar = true) {
+            document.getElementById('modal-puntos').style.display = 'none';
+            document.getElementById('input-puntos-valor').value = '';
+            equipoPuntosManual = null;
+            indicePuntosManual = null;
+            corrigiendoPuntosManual = false;
+            const estabaCorrigiendo = modoCorreccion;
+            modoCorreccion = false;
+            if (estabaCorrigiendo && actualizar) actualizarTablas();
+        }
+
+        function confirmarPuntos() {
+            if (partidaFinalizada) return;
+            const texto = document.getElementById('input-puntos-valor').value.trim();
+            const val = Number(texto);
+            const corregir = corrigiendoPuntosManual;
+            const puntajes = equipoPuntosManual === 'equipo1' ? puntajesEq1 : puntajesEq2;
+            const total = puntajes.reduce((suma, puntos) => suma + puntos, 0);
+            const totalNuevo = total - (corregir ? puntajes[indicePuntosManual] : 0) + val;
+            if (!/^\d+$/.test(texto) || !Number.isSafeInteger(val) || !Number.isSafeInteger(totalNuevo) ||
+                !['equipo1', 'equipo2'].includes(equipoPuntosManual) ||
+                (corregir && !(indicePuntosManual in puntajes))) {
+                document.getElementById('error-puntos').textContent = 'Introduce una cantidad válida de puntos.';
+                return;
+            }
+            if (corregir) {
+                puntajes[indicePuntosManual] = val;
+            } else {
+                puntajes.push(val);
+                turnoSalidaIndex = (turnoSalidaIndex + 1) % 4;
+            }
+            cerrarModalPuntos(false);
+            if (!actualizarTablas()) hablar(`Total, ${totalNuevo} puntos`);
+        }
+
+        function reiniciarPartida() {
+            if (confirm("¿Estás seguro de iniciar una nueva partida desde cero?")) {
+                puntajesEq1 = [];
+                puntajesEq2 = [];
+                partidaFinalizada = false;
+                modoCorreccion = false;
+                turnoSalidaIndex = 0;
+                document.getElementById('modal-victoria').style.display = 'none';
+                actualizarTablas();
+                document.getElementById('modal-config').style.display = 'flex';
+                document.getElementById('input-p1').value = "";
+                document.getElementById('input-p2').value = "";
+                document.getElementById('input-p3').value = "";
+                document.getElementById('input-p4').value = "";
+            }
+        }
+
+        cargarVozMasculina();
+        window.speechSynthesis.onvoiceschanged = cargarVozMasculina;
+    </script>
+</body>
+</html>
