@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-_  build:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -22,13 +22,14 @@ _  build:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install project dependencies
+      - name: Install dependencies
         run: npm install
 
-      - name: Install Capacitor Android platform
-        run: npx cap add android || true
+      - name: Ensure Android platform exists
+        run: |
+          npx cap add android --force || true
 
-      - name: Sync web assets
+      - name: Sync Capacitor assets
         run: npx cap sync android
 
       - name: Grant execute permission for gradlew
