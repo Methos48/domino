@@ -1,5 +1,11 @@
 {
-  "appId": "com.anotador.domino",
-  "appName": "Anotador Domino",
-  "webDir": "www"
+  "appId": "com.domino.app",
+  "appName": "Anotador de Domino",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "cordova": {},
+  "assets": {
+    "icon": "imagen/icono/icono.png",
+    "background": "#000000"
+  }
 }
